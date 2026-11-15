@@ -22,7 +22,7 @@ const primaryNav = [
 const managementNav = [
   { label: 'Users & roles', path: '/users', icon: UserRound, roles: ['ADMIN', 'MANAGER'] },
   { label: 'Territories', path: '/territories', icon: Map, roles: ['ADMIN', 'MANAGER'] },
-  { label: 'Bulk registration', path: '/bulk-import', icon: Upload, roles: ['ADMIN', 'TC'] },
+  { label: 'Bulk registration', path: '/bulk-import', icon: Upload, roles: ['ADMIN', 'TC'], disabled: true },
 ];
 
 const systemNav = [
@@ -180,7 +180,14 @@ export default function Layout() {
       <section className="nav-section" key={label}>
         <p className="nav-section-label">{label}</p>
         <div className="nav-items">
-          {visible.map(({ label: itemLabel, path, icon: Icon }) => (
+          {visible.map(({ label: itemLabel, path, icon: Icon, disabled }) => disabled ? (
+            <button key={path} type="button" className="nav-link nav-link-disabled" disabled aria-disabled="true"
+              aria-label={`${itemLabel}. Temporarily unavailable while the agent API is pending.`}
+              title="Temporarily unavailable while the agent API is pending.">
+              <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
+              <span>{itemLabel}</span>
+            </button>
+          ) : (
             <NavLink key={path} to={path} className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
               <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
               <span>{itemLabel}</span>

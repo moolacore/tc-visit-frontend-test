@@ -2982,3 +2982,5 @@ html, body, #root {
 .brand-indicator, .workspace-dot, .network-nav-dot, .connection-pill > span { display: none; }
 .performance-agent-open { padding: 0; border: 0; color: #26314f; background: transparent; font: inherit; font-size: 12px; font-weight: 650; text-align: left; cursor: pointer; }
 .performance-agent-open:hover { text-decoration: underline; text-underline-offset: 2px; }
+.nav-link.nav-link-disabled, .nav-link.nav-link-disabled:hover { width: 100%; border: 0; color: #aeb5c0; background: transparent; font: inherit; text-align: left; opacity: .48; cursor: not-allowed; }
+.nav-link.nav-link-disabled svg { color: #aeb5c0; }

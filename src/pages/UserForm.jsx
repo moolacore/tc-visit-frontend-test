@@ -6,7 +6,7 @@ import PageHeader from '../components/PageHeader';
 import FormField from '../components/FormField';
 import { LoadingState } from '../components';
 
-const initial = { username: '', email: '', password: '', firstName: '', lastName: '', phoneNumber: '', role: 'TC', isActive: true, territoryIds: [] };
+const initial = { username: '', email: '', password: '', firstName: '', lastName: '', phoneNumber: '', gender: '', educationLevel: '', nationalId: '', role: 'TC', isActive: true, territoryIds: [] };
 
 export default function UserForm() {
   const { id } = useParams();
@@ -37,7 +37,7 @@ export default function UserForm() {
   const submit = async (event) => {
     event.preventDefault(); setError(''); setSaving(true);
     try {
-      const payload = { username: form.username, email: form.email, role: form.role, firstName: form.firstName, lastName: form.lastName, phoneNumber: form.phoneNumber || null };
+      const payload = { username: form.username, email: form.email, role: form.role, firstName: form.firstName, lastName: form.lastName, phoneNumber: form.phoneNumber || null, gender: form.gender || null, educationLevel: form.educationLevel || null, ...(form.nationalId ? { nationalId: form.nationalId } : {}) };
       if (isEdit) {
         await api.put(`/api/v1/users/${id}`, { ...payload, isActive: form.isActive });
       } else {
@@ -67,6 +67,9 @@ export default function UserForm() {
         <FormField.Input label="Username" value={form.username} onChange={(event) => change('username', event.target.value)} required disabled={isEdit} />
         <FormField.Input type="email" label="Email" value={form.email} onChange={(event) => change('email', event.target.value)} required />
         <FormField.Input type="tel" label="Phone number" value={form.phoneNumber || ''} onChange={(event) => change('phoneNumber', event.target.value)} />
+        <FormField.Select label="Gender" value={form.gender || ''} onChange={(event) => change('gender', event.target.value)} placeholder="Select gender" options={['Female', 'Male', 'Other', 'Prefer not to say'].map((value) => ({ value, label: value }))} />
+        <FormField.Input label="Education level" value={form.educationLevel || ''} onChange={(event) => change('educationLevel', event.target.value)} />
+        <FormField.Input label="National ID" value={form.nationalId || ''} onChange={(event) => change('nationalId', event.target.value)} hint={isEdit ? 'The saved ID is encrypted and hidden. Leave blank to keep it unchanged.' : 'Stored encrypted.'} autoComplete="off" />
         <FormField.Select label="Role" value={form.role} onChange={(event) => change('role', event.target.value)} options={['ADMIN', 'MANAGER', 'TC', 'CHAMPION', 'AGENT'].map((role) => ({ value: role, label: role === 'TC' ? 'Territory Coordinator' : role[0] + role.slice(1).toLowerCase() }))} />
         {!isEdit && <FormField.Input type="password" label="Temporary password" value={form.password} onChange={(event) => change('password', event.target.value)} required minLength={8} hint="At least 8 characters. Share this through your approved account setup process." />}
         {isEdit && <FormField.Select label="Account status" value={form.isActive ? 'true' : 'false'} onChange={(event) => change('isActive', event.target.value === 'true')} options={[{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }]} />}
