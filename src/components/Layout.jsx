@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ChevronDown, FileBarChart2, FileClock, Upload,
+  ChevronDown, FileBarChart2, FileClock, Upload, LifeBuoy,
   LayoutDashboard, LogOut, Map, MapPinned, Menu, Settings2, ShieldCheck,
   KeyRound, MessageCircle, UserRound, UsersRound, X
 } from 'lucide-react';
@@ -16,13 +16,14 @@ const primaryNav = [
   { label: 'Visits', path: '/visits', icon: MapPinned, roles: ['ADMIN', 'MANAGER', 'TC', 'CHAMPION'] },
   { label: 'Agents', path: '/agents', icon: UsersRound, roles: ['ADMIN', 'MANAGER', 'TC', 'CHAMPION'] },
   { label: 'WhatsApp groups', path: '/sector-groups', icon: MessageCircle, roles: ['TC'] },
+  { label: 'Issues', path: '/issues', icon: LifeBuoy, roles: ['ADMIN', 'TC'] },
   { label: 'Reports', path: '/reports', icon: FileBarChart2, roles: ['ADMIN', 'MANAGER', 'TC', 'CHAMPION'] },
 ];
 
 const managementNav = [
   { label: 'Users & roles', path: '/users', icon: UserRound, roles: ['ADMIN', 'MANAGER'] },
   { label: 'Territories', path: '/territories', icon: Map, roles: ['ADMIN', 'MANAGER'] },
-  { label: 'Bulk registration', path: '/bulk-import', icon: Upload, roles: ['ADMIN', 'TC'], disabled: true },
+  { label: 'Bulk registration', path: '/bulk-import', icon: Upload, roles: ['ADMIN', 'TC'] },
 ];
 
 const systemNav = [
@@ -180,14 +181,7 @@ export default function Layout() {
       <section className="nav-section" key={label}>
         <p className="nav-section-label">{label}</p>
         <div className="nav-items">
-          {visible.map(({ label: itemLabel, path, icon: Icon, disabled }) => disabled ? (
-            <button key={path} type="button" className="nav-link nav-link-disabled" disabled aria-disabled="true"
-              aria-label={`${itemLabel}. Temporarily unavailable while the agent API is pending.`}
-              title="Temporarily unavailable while the agent API is pending.">
-              <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-              <span>{itemLabel}</span>
-            </button>
-          ) : (
+          {visible.map(({ label: itemLabel, path, icon: Icon }) => (
             <NavLink key={path} to={path} className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
               <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
               <span>{itemLabel}</span>
