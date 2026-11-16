@@ -1,0 +1,7 @@
+services:
+  frontend:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    build:
+      args:
+        VITE_API_URL: ""
