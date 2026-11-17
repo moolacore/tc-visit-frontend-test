@@ -15,7 +15,7 @@ By default, Vite forwards `/api` and `/uploads` requests to `http://localhost:30
 
 ## Run this folder with Docker
 
-Copy `.env.example` to `.env`, set `VITE_API_URL` to the browser-reachable API Gateway URL, then run:
+Copy `.env.example` to `.env` and set `VITE_API_URL` only when the browser should call a separate API Gateway origin. Leave it empty to use the same-origin `/api` proxy; the frontend container forwards that traffic to port 3000 on the Docker host. Then run:
 
 ```bash
 docker compose up --build -d
