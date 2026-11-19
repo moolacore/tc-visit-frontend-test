@@ -23,6 +23,7 @@ export default function SectorGroups() {
   const [areaType, setAreaType] = useState('SECTOR');
   const [areas, setAreas] = useState([]);
   const [links, setLinks] = useState({});
+  const [groupNames, setGroupNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingArea, setSavingArea] = useState('');
   const [processingArea, setProcessingArea] = useState('');
@@ -37,8 +38,13 @@ export default function SectorGroups() {
     setError('');
     try {
       const { data } = await api.get(groupsEndpoint, { params: { type: areaType } });
-      setAreas(Array.isArray(data) ? data : []);
-      setLinks(Object.fromEntries((Array.isArray(data) ? data : []).map((area) => [area.id, area.inviteUrl || ''])));
+      const rows = Array.isArray(data) ? data : [];
+      setAreas(rows);
+      setLinks(Object.fromEntries(rows.map((area) => [area.id, area.inviteUrl || ''])));
+      setGroupNames((current) => Object.fromEntries(rows.map((area) => [
+        area.id,
+        area.group?.groupName || current[area.id] || `DDIN ${area.name}`.slice(0, 25),
+      ])));
     } catch (err) {
       setError(err.response?.data?.error || `Could not load your assigned ${areaLabel.toLowerCase()}s.`);
     } finally { setLoading(false); }
@@ -79,7 +85,10 @@ export default function SectorGroups() {
   const createOrUpdateGroup = async (area) => {
     setProcessingArea(area.id); setError(''); setNotice('');
     try {
-      const { data } = await api.post(areaUrl(area, '/create'), { confirmAgentConsent: consents[area.id] === true });
+      const { data } = await api.post(areaUrl(area, '/create'), {
+        confirmAgentConsent: consents[area.id] === true,
+        groupName: groupNames[area.id]?.trim() || '',
+      });
       if (data.inviteUrl) setLinks((current) => ({ ...current, [area.id]: data.inviteUrl }));
       const counts = `Added ${data.addedCount} of ${data.attemptedCount} phone numbers.`;
       const skipped = data.missingPhoneCount || data.invalidPhoneCount || data.failedCount
@@ -97,7 +106,7 @@ export default function SectorGroups() {
   };
 
   const openGroupSetup = async (area) => {
-    const groupName = `DDIN ${area.name}`;
+    const groupName = groupNames[area.id]?.trim() || `DDIN ${area.name}`.slice(0, 25);
     window.open('https://web.whatsapp.com/', '_blank', 'noopener,noreferrer');
     try { await navigator.clipboard.writeText(groupName); setNotice(`“${groupName}” copied. Create the group in WhatsApp, then paste its invite link above.`); }
     catch { setNotice(`Create “${groupName}” in WhatsApp, then paste the group invite link above.`); }
@@ -117,8 +126,9 @@ export default function SectorGroups() {
       {areas.map((area) => <section className="surface-card sector-group-card" key={area.id}>
         <header><span className="sector-group-icon"><UsersRound size={18} /></span><div><span>{area.path || area.districtName || area.parentName}</span><h2>{area.name}</h2></div><strong>{area.agents.length} agent{area.agents.length === 1 ? '' : 's'}</strong></header>
         {area.providerAvailable && <div className="sector-auto-group">
+          <div className="sector-group-name-field"><label htmlFor={`whatsapp-group-name-${area.id}`}>WhatsApp group name</label><input id={`whatsapp-group-name-${area.id}`} value={groupNames[area.id] || ''} maxLength={25} disabled={Boolean(area.group?.groupId)} onChange={(event) => setGroupNames((current) => ({ ...current, [area.id]: event.target.value }))} placeholder="Enter a group name" /><small>{(groupNames[area.id] || '').length}/25 characters</small></div>
           <label><input type="checkbox" checked={consents[area.id] === true} onChange={(event) => setConsents((current) => ({ ...current, [area.id]: event.target.checked }))} /><span>I confirm that each agent to be added agreed to join this WhatsApp group and share their number with the provider.</span></label>
-          <button type="button" className="btn btn-primary" onClick={() => createOrUpdateGroup(area)} disabled={!consents[area.id] || processingArea === area.id || area.group?.status === 'creating' || area.group?.status === 'needs_review'}>
+          <button type="button" className="btn btn-primary" onClick={() => createOrUpdateGroup(area)} disabled={!consents[area.id] || !groupNames[area.id]?.trim() || groupNames[area.id]?.trim().length > 25 || processingArea === area.id || area.group?.status === 'creating' || area.group?.status === 'needs_review'}>
             <UsersRound size={15} />{processingArea === area.id ? 'Working…' : area.group?.status === 'active' ? 'Add new agents to group' : 'Create group and add agents'}
           </button>
           {area.group?.status === 'active' && <small className="sector-group-status">{area.group.groupName} · {area.group.addedCount} added · {area.group.failedCount} need an invite link</small>}
