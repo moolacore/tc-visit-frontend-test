@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, ExternalLink, MessageCircle, RefreshCw, UsersRound } from 'lucide-react';
 import api from '../api';
 import PageHeader from '../components/PageHeader';
@@ -29,8 +29,10 @@ export default function SectorGroups() {
   const [processingArea, setProcessingArea] = useState('');
   const [consents, setConsents] = useState({});
   const [inviteConsents, setInviteConsents] = useState({});
+  const [clock, setClock] = useState(Date.now());
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const activeOperations = useRef(new Set());
   const areaLabel = areaTypes.find((item) => item.value === areaType)?.label || 'Area';
 
   const loadAreas = useCallback(async () => {
@@ -51,6 +53,10 @@ export default function SectorGroups() {
   }, [areaLabel, areaType, groupsEndpoint]);
 
   useEffect(() => { void loadAreas(); }, [loadAreas]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const areaUrl = (area, action = '') => `${groupsEndpoint}/${encodeURIComponent(area.id)}${action}?type=${areaType}`;
   const saveLink = async (area) => {
@@ -65,7 +71,9 @@ export default function SectorGroups() {
       const delivery = data.inviteDelivery;
       if (!delivery) setNotice(`Saved invite link removed for ${area.name}.`);
       else if (delivery.status === 'provider_unavailable') setNotice(`Invite link saved for ${area.name}, but invitations were not sent because WhatsApp delivery is not configured.`);
-      else if (delivery.status === 'provider_error') setNotice(`Invite link saved for ${area.name}, but WhatsApp could not verify the numbers. Retry after checking the provider connection.`);
+      else if (delivery.status === 'provider_error') setNotice(delivery.retryAfterAt && Date.parse(delivery.retryAfterAt) > Date.now()
+        ? `Invite link saved for ${area.name}. WhatsApp is temporarily limiting requests; wait before retrying.`
+        : `Invite link saved for ${area.name}, but WhatsApp could not verify the numbers. Retry after checking the provider connection.`);
       else setNotice(`Invite link saved for ${area.name}. ${delivery.sentCount} invitations sent; ${delivery.notWhatsAppCount} numbers are not registered on WhatsApp.`);
       await loadAreas();
     } catch (err) { setError(err.response?.data?.error || 'Could not save this WhatsApp invite.'); }
@@ -83,6 +91,8 @@ export default function SectorGroups() {
   };
 
   const createOrUpdateGroup = async (area) => {
+    if (activeOperations.current.has(area.id)) return;
+    activeOperations.current.add(area.id);
     setProcessingArea(area.id); setError(''); setNotice('');
     try {
       const { data } = await api.post(areaUrl(area, '/create'), {
@@ -96,8 +106,12 @@ export default function SectorGroups() {
       setNotice(`${data.message} ${counts}${skipped}`);
       setConsents((current) => ({ ...current, [area.id]: false }));
       await loadAreas();
-    } catch (err) { setError(err.response?.data?.error || 'Could not create or update this WhatsApp group.'); }
-    finally { setProcessingArea(''); }
+    } catch (err) {
+      const message = err.response?.data?.error || 'Could not create or update this WhatsApp group.';
+      if ([409, 429].includes(err.response?.status)) await loadAreas();
+      setError(message);
+    }
+    finally { activeOperations.current.delete(area.id); setProcessingArea(''); }
   };
 
   const copyLink = async (area) => {
@@ -128,22 +142,26 @@ export default function SectorGroups() {
         {area.providerAvailable && <div className="sector-auto-group">
           <div className="sector-group-name-field"><label htmlFor={`whatsapp-group-name-${area.id}`}>WhatsApp group name</label><input id={`whatsapp-group-name-${area.id}`} value={groupNames[area.id] || ''} maxLength={25} disabled={Boolean(area.group?.groupId)} onChange={(event) => setGroupNames((current) => ({ ...current, [area.id]: event.target.value }))} placeholder="Enter a group name" /><small>{(groupNames[area.id] || '').length}/25 characters</small></div>
           <label><input type="checkbox" checked={consents[area.id] === true} onChange={(event) => setConsents((current) => ({ ...current, [area.id]: event.target.checked }))} /><span>I confirm that each agent to be added agreed to join this WhatsApp group and share their number with the provider.</span></label>
-          <button type="button" className="btn btn-primary" onClick={() => createOrUpdateGroup(area)} disabled={!consents[area.id] || !groupNames[area.id]?.trim() || groupNames[area.id]?.trim().length > 25 || processingArea === area.id || area.group?.status === 'creating' || area.group?.status === 'needs_review'}>
+          <button type="button" className="btn btn-primary" onClick={() => createOrUpdateGroup(area)} disabled={!consents[area.id] || !groupNames[area.id]?.trim() || groupNames[area.id]?.trim().length > 25 || processingArea === area.id || area.group?.status === 'creating' || area.group?.status === 'needs_review' || (['rate_limited', 'active'].includes(area.group?.status) && Date.parse(area.group.retryAfterAt || '') > clock)}>
             <UsersRound size={15} />{processingArea === area.id ? 'Working…' : area.group?.status === 'active' ? 'Add new agents to group' : 'Create group and add agents'}
           </button>
+          {['rate_limited', 'active'].includes(area.group?.status) && Date.parse(area.group.retryAfterAt || '') > clock && <small className="sector-group-status">WhatsApp is limiting requests. Try again in {Math.ceil((Date.parse(area.group.retryAfterAt) - clock) / 1000)} seconds; repeated requests can extend the restriction.</small>}
+          {area.group?.status === 'rate_limited' && Date.parse(area.group.retryAfterAt || '') <= clock && <small className="sector-group-status">The cooldown has ended. Check the Whapi channel is authorized before retrying.</small>}
           {area.group?.status === 'active' && <small className="sector-group-status">{area.group.groupName} · {area.group.addedCount} added · {area.group.failedCount} need an invite link</small>}
           {area.group?.status === 'creating' && <small className="sector-group-status">A group creation request is being checked. Contact an administrator before trying again.</small>}
           {area.group?.status === 'needs_review' && <small className="sector-group-status">An administrator needs to check the provider account before another group action.</small>}
         </div>}
         {!area.providerAvailable && <p className="sector-group-provider-unavailable">Automatic group setup is not configured. You can still use the manual invite-link workflow below.</p>}
-        <div className="sector-group-link-row"><label htmlFor={`area-link-${area.id}`}>WhatsApp group invite link</label>{area.providerAvailable && !area.group?.groupId && <label className="sector-group-invite-consent"><input type="checkbox" checked={inviteConsents[area.id] === true} onChange={(event) => setInviteConsents((current) => ({ ...current, [area.id]: event.target.checked }))} /><span>I confirm agents agreed to receive this invite and have their numbers checked by the provider.</span></label>}<div><input id={`area-link-${area.id}`} type="url" value={links[area.id] || ''} disabled={area.group?.status === 'active'} onChange={(event) => setLinks((current) => ({ ...current, [area.id]: event.target.value }))} placeholder="https://chat.whatsapp.com/…" /><button type="button" className="btn btn-primary" onClick={() => saveLink(area)} disabled={savingArea === area.id || area.group?.status === 'active' || !links[area.id]?.trim() || (area.providerAvailable && !area.group?.groupId && inviteConsents[area.id] !== true)}>{savingArea === area.id ? 'Saving and inviting…' : 'Save link and invite agents'}</button>{links[area.id] && !area.group && <button type="button" className="btn btn-secondary" onClick={() => removeLink(area)} disabled={savingArea === area.id}>Remove saved link</button>}</div></div>
+        <div className="sector-group-link-row"><label htmlFor={`area-link-${area.id}`}>WhatsApp group invite link</label>{area.providerAvailable && !area.group?.groupId && <label className="sector-group-invite-consent"><input type="checkbox" checked={inviteConsents[area.id] === true} onChange={(event) => setInviteConsents((current) => ({ ...current, [area.id]: event.target.checked }))} /><span>I confirm agents agreed to receive this invite and have their numbers checked by the provider.</span></label>}<div><input id={`area-link-${area.id}`} type="url" value={links[area.id] || ''} disabled={area.group?.status === 'active'} onChange={(event) => setLinks((current) => ({ ...current, [area.id]: event.target.value }))} placeholder="https://chat.whatsapp.com/…" /><button type="button" className="btn btn-primary" onClick={() => saveLink(area)} disabled={savingArea === area.id || area.group?.status === 'active' || !links[area.id]?.trim() || (area.providerAvailable && !area.group?.groupId && inviteConsents[area.id] !== true) || (Date.parse(area.inviteDelivery?.retryAfterAt || '') > clock)}>{savingArea === area.id ? 'Saving and inviting…' : 'Save link and invite agents'}</button>{links[area.id] && !area.group && <button type="button" className="btn btn-secondary" onClick={() => removeLink(area)} disabled={savingArea === area.id}>Remove saved link</button>}</div></div>
         {area.inviteDelivery && <div className={`sector-group-delivery ${area.inviteDelivery.status === 'complete' ? 'is-complete' : 'is-warning'}`} role="status">
           <strong>{area.inviteDelivery.status === 'provider_unavailable' ? (area.providerAvailable ? 'Invitations are ready to retry' : 'WhatsApp invitations are not configured') : area.inviteDelivery.status === 'provider_error' ? 'WhatsApp number check needs attention' : 'Invitation follow-up'}</strong>
           {area.inviteDelivery.status === 'provider_unavailable' && <p>{area.providerAvailable
             ? 'The provider is available now. To retry this saved link, confirm agent consent and select “Save link and invite agents”.'
             : 'The link is saved. Ask an administrator to configure WhatsApp delivery, then save the link again to send invitations.'}</p>}
           {area.inviteDelivery.status === 'provider_error' && <p>{area.providerAvailable
-            ? 'The provider is available now. Confirm agent consent and save the link again to retry the number checks and invitations.'
+            ? area.inviteDelivery.retryAfterAt && Date.parse(area.inviteDelivery.retryAfterAt) > clock
+              ? `WhatsApp is temporarily limiting requests. Wait about ${Math.ceil((Date.parse(area.inviteDelivery.retryAfterAt) - clock) / 1000)} seconds before retrying.`
+              : 'The provider could not complete the number checks or invitations. Confirm agent consent and retry after checking the channel status.'
             : 'The link is saved, but the provider could not check the numbers. Save the link again after the connection is restored.'}</p>}
           {area.inviteDelivery.status === 'complete' && <p>{area.inviteDelivery.sentCount} invitation{area.inviteDelivery.sentCount === 1 ? '' : 's'} sent. {area.inviteDelivery.notWhatsAppCount} number{area.inviteDelivery.notWhatsAppCount === 1 ? ' is' : 's are'} not registered on WhatsApp.</p>}
           {[
