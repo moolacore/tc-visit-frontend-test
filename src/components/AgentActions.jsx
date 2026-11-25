@@ -2,9 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRightLeft, Send } from 'lucide-react';
 import api from '../api';
 
-const assignedIds = (assignments = []) => assignments.map((item) => typeof item === 'string' ? item : item?.id).filter(Boolean);
-
-export default function AgentActions({ agent, assignedTerritories = [], onAgentChange }) {
+export default function AgentActions({ agent, onAgentChange }) {
   const [territories, setTerritories] = useState([]);
   const [territoriesLoading, setTerritoriesLoading] = useState(false);
   const [transferTargets, setTransferTargets] = useState([]);
@@ -23,8 +21,9 @@ export default function AgentActions({ agent, assignedTerritories = [], onAgentC
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const assigned = useMemo(() => assignedIds(assignedTerritories), [assignedTerritories]);
-  const districts = useMemo(() => territories.filter((item) => item.type === 'DISTRICT' && item.isActive && assigned.includes(item.id)), [territories, assigned]);
+  // The TC-scoped territories endpoint is authoritative. AuthContext can hold
+  // assignments from the previous login, hiding districts added since then.
+  const districts = useMemo(() => territories.filter((item) => item.type === 'DISTRICT' && item.isActive), [territories]);
   const sectors = useMemo(() => territories.filter((item) => item.type === 'SECTOR' && item.isActive && item.parentId === territoryId), [territories, territoryId]);
   const cells = useMemo(() => territories.filter((item) => item.type === 'CELL' && item.isActive && item.parentId === sectorId), [territories, sectorId]);
   const villages = useMemo(() => territories.filter((item) => item.type === 'VILLAGE' && item.isActive && item.parentId === cellId), [territories, cellId]);
