@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ChevronDown, FileBarChart2, FileClock, Upload, LifeBuoy,
+  ChevronDown, FileBarChart2, FileClock, Inbox, Upload, LifeBuoy,
   LayoutDashboard, LogOut, Map, MapPinned, Menu, Settings2, ShieldCheck,
   KeyRound, MessageCircle, UserRound, UsersRound, X
 } from 'lucide-react';
@@ -18,6 +18,7 @@ const primaryNav = [
   { label: 'WhatsApp groups', path: '/sector-groups', icon: MessageCircle, roles: ['TC'] },
   { label: 'Issues', path: '/issues', icon: LifeBuoy, roles: ['ADMIN', 'TC'] },
   { label: 'Reports', path: '/reports', icon: FileBarChart2, roles: ['ADMIN', 'MANAGER', 'TC', 'CHAMPION'] },
+  { label: 'Request inbox', path: '/admin/requests', icon: Inbox, roles: ['ADMIN'] },
 ];
 
 const managementNav = [
@@ -291,7 +292,7 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <div className="request-notification-host"><RequestNotifications role={mustChangePassword ? null : role} /></div>
+        {location.pathname !== '/admin/requests' && <div className="request-notification-host"><RequestNotifications role={mustChangePassword ? null : role} /></div>}
         <main className={`page-canvas${location.pathname === '/visits/new' ? ' visit-workflow-canvas' : ''}`}><Outlet /></main>
       </div>
       <nav className={`mobile-tabs${mustChangePassword ? ' mobile-tabs-single' : ''}`} aria-label="Quick navigation">
