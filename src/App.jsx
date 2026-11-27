@@ -26,6 +26,7 @@ import MovementDetail from './pages/MovementDetail';
 import ConfigPage from './pages/ConfigPage';
 import AuditLogs from './pages/AuditLogs';
 import AdminRequests from './pages/AdminRequests';
+import TcNotifications from './pages/TcNotifications';
 import ProfilePage from './pages/ProfilePage';
 import BulkImport from './pages/BulkImport';
 import SectorGroups from './pages/SectorGroups';
@@ -106,6 +107,7 @@ const AppRoutes = () => {
         <Route path="/reports/movements/:eventKey" element={<ProtectedRoute allowedRoles={['ADMIN']}><MovementDetail /></ProtectedRoute>} />
 
         {/* Admin */}
+        <Route path="/notifications" element={<ProtectedRoute allowedRoles={["TC"]}><TcNotifications /></ProtectedRoute>} />
         <Route path="/admin/requests" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminRequests /></ProtectedRoute>} />
         <Route path="/config" element={<ProtectedRoute allowedRoles={['ADMIN']}><ConfigPage /></ProtectedRoute>} />
         <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['ADMIN']}><AuditLogs /></ProtectedRoute>} />
