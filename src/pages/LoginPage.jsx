@@ -17,7 +17,7 @@ export default function LoginPage() {
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (!themeColor) return undefined;
     const previousColor = themeColor.content;
-    themeColor.content = '#f5f7fb';
+    themeColor.content = '#FAFAF7';
     return () => { themeColor.content = previousColor; };
   }, []);
 
